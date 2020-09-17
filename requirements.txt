@@ -1,0 +1,4 @@
+bottle
+sqlalchemy
+mysqlclient
+jinja2
