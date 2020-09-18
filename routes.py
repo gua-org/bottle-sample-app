@@ -3,6 +3,7 @@ from bottle import response
 from models import session, Books
 from sqlalchemy import text
 from utils.util import Utils
+import logging
 
 app = Bottle()
 
@@ -19,9 +20,10 @@ def add():
     view = ""
     registId = ""
     form = {}
-    kind = "登録"
+    kind = "Registration"
     if request.method == 'GET':
-        # id指定された場合
+        logging.info('Came to GET in /add')
+
         if request.query.get('id') is not None:
             book = session.query(Books).filter(Books.id_==request.query.get('id')).first()
             form['name'] = book.name
@@ -31,29 +33,24 @@ def add():
             form['memo'] = book.memo
             registId = book.id_
 
-            kind = "編集"
+            kind = "Edit"
 
-        # 表示処理
         return template('add.html'
                 , form = form
                 , kind=kind
                 , registId=registId)
-    # POSTされた場合
     elif request.method == 'POST':
-        # POST値の取得
+        logging.info('Came to POST in /add')
         form['name'] = request.forms.decode().get('name')
         form['volume'] = request.forms.decode().get('volume')
         form['author'] = request.forms.decode().get('author')
         form['publisher'] = request.forms.decode().get('publisher')
         form['memo'] = request.forms.decode().get('memo')
         registId = ""
-        # idが指定されている場合
         if request.forms.decode().get('id') is not None:
             registId = request.forms.decode().get('id')
 
-        # バリデーション処理
         errorMsg = Utils.validate(data=form)
-        # 表示処理
         print(errorMsg)
         if request.forms.get('next') == 'back':
             return template('add.html'
@@ -62,7 +59,7 @@ def add():
                     , registId=registId)
 
         if errorMsg == []:
-            headers = ['著書名', '巻数', '著作者', '出版社', 'メモ']
+            headers = ['Book Title', 'Volumes',' Authors',' Publishers',' Memo']
             return template('confirm.html'
                     , form=form
                     , headers=headers
@@ -77,7 +74,6 @@ def add():
 @app.route('/regist', method='POST')
 def regist():
 
-    # データ受取
     name = request.forms.decode().get('name');
     volume = request.forms.decode().get('volume');
     author = request.forms.decode().get('author');
@@ -91,7 +87,6 @@ def regist():
         return response
     else:
         if registId is not None:
-            # 更新処理
             books = session.query(Books).filter(Books.id_==registId).first()
             books.name = name
             books.volume = volume
@@ -101,7 +96,7 @@ def regist():
             session.commit()
             session.close()
         else:
-            # データの保存処理
+            logging.info('Adding a new book')
             books = Books(
                     name = name,
                     volume = volume,
@@ -111,20 +106,17 @@ def regist():
             session.add(books) 
             session.commit()
             session.close()
-        redirect('/list') # 一覧画面に遷移
+        redirect('/list')
 
-# パスワードのリスト表示する
 @app.route('/list')
 def passList():
-    # DBから書籍リストの取得
     bookList = session.query(Books.name, Books.volume, Books.author, Books.publisher, Books.memo, Books.id_)\
             .filter(Books.delFlg == 0).all()
-    headers = ['書名', '巻数', '著者', '出版社', 'メモ','操作']
+    headers = ['Title', 'Volume number', 'Author', 'Publishing house', 'Note', 'Operation']
     return template('list.html', bookList=bookList, headers=headers)
 
 @app.route('/delete/<dataId>')
 def delete(dataId):
-    # 論理削除を実行
     book = session.query(Books).filter(Books.id_==dataId).first()
     book.delFlg = 1
     session.commit()
